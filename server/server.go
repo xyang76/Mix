@@ -105,7 +105,25 @@ func Start() {
 	http.Serve(l, nil)
 }
 
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, addr := range addrs {
+		ipnet, ok := addr.(*net.IPNet)
+		if ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
+			return ipnet.IP.String()
+		}
+	}
+	return ""
+}
+
 func registerWithMaster(masterAddr string) (int, []string) {
+	addr := *myAddr
+	if addr == "" {
+		addr = getLocalIP()
+	}
 	args := &masterproto.RegisterArgs{*myAddr, *portnum}
 	var reply masterproto.RegisterReply
 
