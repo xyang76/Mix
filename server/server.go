@@ -124,7 +124,7 @@ func registerWithMaster(masterAddr string) (int, []string) {
 	if addr == "" {
 		addr = getLocalIP()
 	}
-	args := &masterproto.RegisterArgs{*myAddr, *portnum}
+	args := &masterproto.RegisterArgs{addr, *portnum}
 	var reply masterproto.RegisterReply
 
 	for done := false; !done; {
