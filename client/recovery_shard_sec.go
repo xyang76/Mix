@@ -42,6 +42,7 @@ func StartRecoveryShardClientSec() {
 	}
 
 	batch := *reqsNum
+	writePercent := *writes
 	turns := 100
 	shards := shard.NewShardInfo()
 	replyTime := NewReplyTime(turns, batch)
@@ -53,15 +54,16 @@ func StartRecoveryShardClientSec() {
 	}
 
 	// success report
+	last := int64(0)
 	go func() {
 		t := time.NewTicker(2 * time.Second)
 		for range t.C {
-			fmt.Printf("Success so far: %d\n", client.Success())
+			fmt.Printf("Success so far: %d, this round %d\n", client.Success(), client.success-last)
+			last = client.success
 		}
 	}()
 
 	reqID := int32(0)
-
 	ticker := time.NewTicker(1 * time.Second)
 	start := time.Now()
 	skipped := make(map[int32]int32)
@@ -77,7 +79,12 @@ func StartRecoveryShardClientSec() {
 			if reqID-lastId-skipped[sid] > config.CHAN_BUFFER_SIZE/2 {
 				skipped[sid]++
 			} else {
-				client.NonBlockSend(reqID, key, state.PUT, state.Value(reqID))
+				operation := client.RandomValue()
+				if operation <= writePercent {
+					client.NonBlockSend(reqID, key, state.PUT, state.Value(reqID))
+				} else {
+					client.NonBlockSend(reqID, key, state.GET, state.Value(reqID))
+				}
 				reqID++
 			}
 		}
