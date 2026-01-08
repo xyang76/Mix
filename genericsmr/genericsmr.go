@@ -510,6 +510,13 @@ func (r *Replica) ReplyProposeTS(reply *genericsmrproto.ProposeReplyTS, w *bufio
 	w.Flush()
 }
 
+func (r *Replica) ReplyProposeTSNoFlush(reply *genericsmrproto.ProposeReplyTS, w *bufio.Writer) {
+	//r.clientMutex.Lock()
+	//defer r.clientMutex.Unlock()
+	//w.WriteByte(genericsmrproto.PROPOSE_REPLY)
+	reply.Marshal(w)
+}
+
 func (r *Replica) SendBeacon(peerId int32) {
 	w := r.PeerWriters[peerId]
 	w.WriteByte(genericsmrproto.GENERIC_SMR_BEACON)

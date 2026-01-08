@@ -293,7 +293,7 @@ func (r *Replica) run() {
 	go r.slowClock()
 
 	//Enabled when batching for 5ms
-	if config.MAX_BATCH > 9 {
+	if config.MAX_BATCH > 0 {
 		go r.fastClock()
 	}
 

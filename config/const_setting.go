@@ -44,7 +44,7 @@ const FALSE = uint8(0)
 var TickTime *int = flag.Int("tt", 5, "Tick time in milliseconds")
 var Commit *int = flag.Int("cmt", 1, "Tick time in milliseconds")
 
-var MAX_BATCH = 10
+var MAX_BATCH = 2
 
 const Max_CMD_SECOND = 50000 //
 const Read_Local = true      //For raft/shipyard, we do not need replicate reads
