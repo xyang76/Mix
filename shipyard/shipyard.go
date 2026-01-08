@@ -312,8 +312,10 @@ func (r *Replica) StopLeadingTimer() {
 
 func (r *Replica) checkShardStatus() {
 	currentTime := time.Now()
-
-	for shard, lastSeen := range r.shardLastTime {
+	r.mu.Lock()
+	timer := r.shardLastTime
+	r.mu.Unlock()
+	for shard, lastSeen := range timer {
 		// Calculate the time since the last seen
 		durationSinceLastSeen := currentTime.Sub(lastSeen).Milliseconds()
 		// Check if the node has expired
