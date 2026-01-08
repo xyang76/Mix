@@ -229,7 +229,7 @@ func (r *ShardedRaft) handleAppendEntries(args *raft.AppendEntriesArgs) {
 			(args.PrevLogIndex < r.log.Size() && args.PrevLogTerm == r.log.Get(args.PrevLogIndex).Term) {
 			reply.Success = true
 			logInsertIndex := args.PrevLogIndex + 1
-			if *config.FastRaft == 0 {
+			if *config.FastRaft == 1 {
 				size := int32(len(args.Entries))
 				r.appendFrom(args.PrevLogIndex+1, size, args.Entries)
 				if args.LeaderCommit > r.commitIndex {
@@ -319,7 +319,7 @@ func (r *ShardedRaft) handleAppendEntriesReply(reply *raft.AppendEntriesReply) {
 				peerId, r.nextIndex, r.matchIndex)
 
 			// Leader commits
-			if *config.FastRaft == 0 {
+			if *config.FastRaft == 1 {
 				r.updateCommitIndexRaft()
 			} else {
 				savedCommitIndex := r.commitIndex

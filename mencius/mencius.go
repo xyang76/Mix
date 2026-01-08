@@ -87,12 +87,12 @@ func NewReplica(id int, peerAddrList []string, thrifty bool, exec bool, dreply b
 		skippedTo[i] = -1
 	}
 	r := &Replica{genericsmr.NewReplica(id, peerAddrList, thrifty, exec, dreply),
-		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE*4),
 		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
-		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE*4),
+		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
+		make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		make(chan *DelayedSkip, genericsmr.CHAN_BUFFER_SIZE),
 		0, 0, 0, 0, 0, 0,
 		make(chan bool, 10),
