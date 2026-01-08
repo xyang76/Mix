@@ -618,7 +618,7 @@ func (r *Skiff) handleBalance(args *BalanceArgs) {
 	//if r.role == Leader && r.Id == args.LeaderId && r.grantedApportion < args.ProposalApportion {
 	//	reply.Token = true
 	//	r.grantedApportion = args.ProposalApportion
-	//	time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
+	//	time.AfterFunc(time.Duration(*config.BalanceRegenerate)*time.Millisecond, func() {
 	//		r.grantedApportion = 0
 	//	})
 	//}

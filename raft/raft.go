@@ -261,7 +261,7 @@ func (r *Replica) runElectionTimer() {
 						r.startElection()
 					}
 				}
-				timer.Reset(time.Duration(*config.HeartBeatInterval)) // or some random interval
+				timer.Reset(time.Duration(*config.RaftElectionInterval)) // or some random interval
 			}
 		}
 	}()
@@ -546,10 +546,13 @@ func (r *Replica) leaderAppendEntries() {
 			prevLogTerm = r.log.Get(prevLogIndex).Term
 		}
 		// Limit entries: r.log[ni : ni+MAX_BATCH]
-		entries := r.log.Slice(ni, r.log.Size())
-		if len(entries) > config.MAX_BATCH {
-			entries = entries[:config.MAX_BATCH]
-		}
+		//entries := r.log.Slice(ni, r.log.Size())
+		//if len(entries) > config.MAX_BATCH {
+		//	entries = entries[:config.MAX_BATCH]
+		//}
+		end := min(r.log.Size(), ni+int32(config.MAX_BATCH))
+		entries := r.log.Slice(ni, end)
+
 		args := &AppendEntriesArgs{
 			Term:         r.currentTerm,
 			LeaderId:     r.Id,
@@ -558,6 +561,7 @@ func (r *Replica) leaderAppendEntries() {
 			Entries:      entries,
 			LeaderCommit: r.commitIndex,
 		}
+		r.nextIndex[peerId] = end - 1
 		r.SendMsg(peerId, r.appendEntryRPC, args)
 	}
 }
@@ -602,7 +606,7 @@ func (r *Replica) handlePropose(propose *genericsmr.Propose) {
 	}
 
 	//r.leaderAppendEntries()
-	r.logAppendChan <- struct{}{}
+	r.leaderAppendEntries()
 
 }
 
@@ -695,7 +699,8 @@ func (r *Replica) handleRWPropose(propose *genericsmr.Propose) {
 
 	// Trigger replication only if writes were appended
 	if needReplicate {
-		r.logAppendChan <- struct{}{}
+		//r.logAppendChan <- struct{}{}
+		r.leaderAppendEntries()
 	}
 	if needRead {
 		r.proceedRead(r.Dreply)
@@ -748,7 +753,9 @@ func (r *Replica) updateCommitIndexRaft() {
 func (r *Replica) commitLog(from int32, to int32) {
 	dlog.Print("%d commiting log from %d to %d, with log size %d", r.Id, from, to, r.log.Size())
 	for i := from + 1; i <= to; i++ {
+		r.mu.Lock()
 		req := r.pendingRequests[i]
+		r.mu.Unlock()
 		if req != nil && !r.Dreply {
 			if req.Term == r.log.Get(i).Term && req.Index == i {
 				// reply to client that their request was accepted (TRUE)
@@ -769,7 +776,9 @@ func (r *Replica) commitLog(from int32, to int32) {
 				}
 				r.ReplyProposeTS(propreply, req.Propose.Reply)
 			}
+			r.mu.Lock()
 			delete(r.pendingRequests, i)
+			r.mu.Unlock()
 		}
 	}
 	if !r.Dreply && config.Read_Local {
@@ -791,9 +800,11 @@ func (r *Replica) executeCommands() {
 			applied = true
 			// Execute command on state machine
 			val := entry.Command.Execute(r.State)
-
+			r.mu.Lock()
+			req, ok := r.pendingRequests[idx]
+			r.mu.Unlock()
 			// If this command came from a client, send the reply.
-			if req, ok := r.pendingRequests[idx]; r.Dreply && ok {
+			if r.Dreply && ok {
 				if req.Term == entry.Term {
 					reply := &genericsmrproto.ProposeReplyTS{
 						OK:        config.TRUE,
@@ -813,7 +824,9 @@ func (r *Replica) executeCommands() {
 				}
 
 				// Safe cleanup
+				r.mu.Lock()
 				delete(r.pendingRequests, idx)
+				r.mu.Unlock()
 			}
 		}
 

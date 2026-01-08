@@ -353,7 +353,7 @@ func (r *Replica) getCurrentLeaderSize() int {
 func (r *Replica) grantApportion(apportion int32) bool {
 	if r.grantedApportion < apportion {
 		r.grantedApportion = apportion
-		time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
+		time.AfterFunc(time.Duration(*config.BalanceRegenerate)*time.Millisecond, func() {
 			r.grantedApportion = -1
 		})
 		return true
@@ -439,7 +439,7 @@ func (r *Replica) runBalance(shard int32, leaderId int32, apportion int32, skiff
 		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v. Skiff:%v}",
 			r.Id, shard, leaderId, decodeApportion(int(apportion)), decodeApportion(int(current)),
 			skiff.currentApportion)
-		time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
+		time.AfterFunc(time.Duration(*config.BalanceRegenerate)*time.Millisecond, func() {
 			r.balancing = false
 		})
 		skiff.startBalance(leaderId, current)

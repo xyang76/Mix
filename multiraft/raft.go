@@ -154,7 +154,7 @@ func (r *ShardedRaft) runElectionTimer() {
 						r.startElection()
 					}
 				}
-				timer.Reset(time.Duration(*config.HeartBeatInterval)) // or some random interval
+				timer.Reset(time.Duration(*config.RaftElectionInterval)) // or some random interval
 			}
 		}
 	}()
@@ -504,6 +504,7 @@ func (r *ShardedRaft) leaderAppendEntries() {
 		//if len(entries) > 0 {
 		//	dlog.EC.Count("AppendEntries", "%v leader appends", r.getShardInfo())
 		//}
+		r.nextIndex[peerId] = end - 1
 		r.replica.SendMsg(peerId, r.replica.appendEntryRPC, args)
 	}
 }

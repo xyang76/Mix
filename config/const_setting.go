@@ -30,8 +30,8 @@ var SeperateClientPort *bool = flag.Bool("sp", true, "Seperate client ports and 
 // Raft and Shipyard
 var HeartBeatInterval *int = flag.Int("hi", 1000, "Heartbeat interval in milliseconds")
 var HeartBeatTimeout *int = flag.Int("ht", 10000, "Heartbeat timeout in milliseconds")
-var BalanceInterval *int = flag.Int("bi", 2000, "Balance interval in milliseconds")
-var TokenRegenerate *int = flag.Int("to", 500, "Token regeneration in milliseconds")
+var RaftElectionInterval *int = flag.Int("et", 1000, "election timeout in milliseconds")
+var BalanceRegenerate *int = flag.Int("to", 500, "Token regeneration in milliseconds")
 var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, lost connection, we need this timeout to count elapse")
 var BatchSize *int = flag.Int("mb", 10, "max batch size")
 var AutoBalance *int = flag.Int("ab", 1, "auto balance")
@@ -43,7 +43,7 @@ const TRUE = uint8(1)
 const FALSE = uint8(0)
 
 var TickTime *int = flag.Int("tt", 5, "Tick time in milliseconds")
-var FastRaft *int = flag.Int("cmt", 1, "Tick time in milliseconds")
+var FastRaft *int = flag.Int("cmt", 0, "Tick time in milliseconds")
 
 var MAX_BATCH = 2
 var Auto_Balance = true
