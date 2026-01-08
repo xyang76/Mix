@@ -43,6 +43,7 @@ type Skiff struct {
 	pendingRequests map[int32]*ClientRequests
 	pendingReads    []*ClientRequests
 
+	leader           int32
 	commitIndex      int32
 	lastApplied      int32
 	votedFor         int32
@@ -370,7 +371,7 @@ func (r *Skiff) startElection(apportion int32) {
 	r.voteReceived = 1
 	r.role = Candidate
 	r.currentApportion = apportion
-	r.currentEpoch += 1
+	r.currentEpoch += 1000
 	r.lastCommmitIndex = r.commitIndex
 	r.replica.refreshTime(r.shard)
 
@@ -458,6 +459,10 @@ func (r *Skiff) epochAndApportion() (int32, int32) {
 	return -1, -1
 }
 
+func (r *Skiff) setLeader(leader int32) {
+	r.leader = leader
+}
+
 func (r *Skiff) getShardInfo() string {
 	return fmt.Sprintf("|{ rep:%v-shard:%v-term:<%v,%v> }| ", r.Id, r.shard, r.currentEpoch, decodeApportion(int(r.currentApportion)))
 }
@@ -504,6 +509,11 @@ func (r *Skiff) leaderAppendEntries() {
 	if r.role != Leader {
 		return
 	}
+	app := r.replica.getCurrentApportion()
+	if app != r.currentApportion {
+		r.currentEpoch += 1
+		r.currentApportion = app
+	}
 	for _, peerId := range r.peerIds {
 		ni := r.nextIndex[peerId] + 1 // Go slice start
 		if ni >= r.log.Size() {
@@ -545,6 +555,7 @@ func (r *Skiff) handleAppendEntries(args *AppendEntriesArgs) {
 
 	if args.Epoch > r.currentEpoch || (args.Epoch == r.currentEpoch && args.Apportion >= r.currentApportion) {
 		r.becomeFollower(args.Epoch, args.Apportion)
+		r.setLeader(args.LeaderId)
 		if args.StartIndex >= r.log.Size() {
 			reply.OK = false
 			reply.CommitIndex = r.commitIndex
@@ -577,16 +588,16 @@ func (r *Skiff) handleAppendEntriesReply(reply *AppendEntriesReply) {
 	r.updateCommitIndex()
 }
 
-func (r *Skiff) startBalance(leaderId int32) {
-	r.tokenAcquired = false
+func (r *Skiff) startBalance(leaderId int32, expect int32) {
+	r.tokenAcquired = true
 	r.balanceReceived = 1
-
-	dlog.Println("%v start balance with term <%v,%v>", r.getShardInfo(), r.currentEpoch, r.currentApportion)
+	dlog.Println("%v start balance with expect term <%v, %v>, and expect apportion %v",
+		r.getShardInfo(), r.currentEpoch, r.currentApportion, expect)
 	msg := &BalanceArgs{
-		Shard:       r.shard,
-		LeaderId:    leaderId,
-		Sender:      r.Id,
-		ProposalNum: r.replica.getCurrentApportion(),
+		Shard:             r.shard,
+		LeaderId:          leaderId,
+		Sender:            r.Id,
+		ProposalApportion: expect,
 	}
 	for _, peer := range r.peerIds {
 		r.replica.SendMsg(peer, r.replica.balanceRPC, msg)
@@ -596,22 +607,32 @@ func (r *Skiff) startBalance(leaderId int32) {
 func (r *Skiff) handleBalance(args *BalanceArgs) {
 	var reply BalanceReply
 	reply.Shard = r.shard
-	if r.role == Leader && r.Id == args.LeaderId && r.grantedApportion < args.ProposalNum {
-		reply.Token = true
-		r.grantedApportion = args.ProposalNum
-		time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
-			r.grantedApportion = 0
-		})
+	reply.Token = false
+	reply.OK = false
+	if r.replica.grantApportion(args.ProposalApportion) {
+		reply.OK = true
 	}
+	//if r.role == Leader && r.Id == args.LeaderId {
+	//	reply.Token = true
+	//}
+	//if r.role == Leader && r.Id == args.LeaderId && r.grantedApportion < args.ProposalApportion {
+	//	reply.Token = true
+	//	r.grantedApportion = args.ProposalApportion
+	//	time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
+	//		r.grantedApportion = 0
+	//	})
+	//}
 	r.replica.SendMsg(args.Sender, r.replica.balanceReplyRPC, &reply)
 }
 
 func (r *Skiff) handleBalanceReply(reply *BalanceReply) {
-	r.balanceReceived += 1
-	if reply.Token {
-		r.tokenAcquired = true
+	if reply.OK {
+		r.balanceReceived += 1
+	} else {
+		r.tokenAcquired = false
 	}
 	if r.balanceReceived*2 > len(r.peerIds)+1 && r.tokenAcquired {
+		dlog.Info("%v able to balance shard %v, leader %v..", r.Id, r.shard, r.leader)
 		r.tokenAcquired = false //Reset it false to avoid duplicate balancing
 		if r.replica.allowBalance(r.shard) {
 			r.startElection(r.replica.getCurrentApportion())

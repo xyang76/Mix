@@ -28,10 +28,10 @@ var ShardStatus *bool = flag.Bool("status", false, "Show shard leading status.")
 var SeperateClientPort *bool = flag.Bool("sp", true, "Seperate client ports and peer ports.")
 
 // Raft and Shipyard
-var HeartBeatInterval *int = flag.Int("hi", 2000, "Heartbeat interval in milliseconds")
+var HeartBeatInterval *int = flag.Int("hi", 1000, "Heartbeat interval in milliseconds")
 var HeartBeatTimeout *int = flag.Int("ht", 10000, "Heartbeat timeout in milliseconds")
 var BalanceInterval *int = flag.Int("bi", 2000, "Balance interval in milliseconds")
-var TokenRegenerate *int = flag.Int("to", 5000, "Token regeneration in milliseconds")
+var TokenRegenerate *int = flag.Int("to", 500, "Token regeneration in milliseconds")
 var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, lost connection, we need this timeout to count elapse")
 var BatchSize *int = flag.Int("mb", 10, "max batch size")
 var AutoBalance *int = flag.Int("ab", 1, "auto balance")
@@ -43,10 +43,10 @@ const TRUE = uint8(1)
 const FALSE = uint8(0)
 
 var TickTime *int = flag.Int("tt", 5, "Tick time in milliseconds")
-var Commit *int = flag.Int("cmt", 1, "Tick time in milliseconds")
+var FastRaft *int = flag.Int("cmt", 1, "Tick time in milliseconds")
 
 var MAX_BATCH = 2
-var Auto_Balance = false
+var Auto_Balance = true
 
 const Max_CMD_SECOND = 50000 //
 const Read_Local = true      //For raft/shipyard, we do not need replicate reads

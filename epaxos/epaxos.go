@@ -344,15 +344,15 @@ func (r *Replica) run() {
 
 		case commitS := <-r.commitChan:
 			commit := commitS.(*epaxosproto.Commit)
-			//got a Commit message
-			dlog.Printf("Received Commit for instance %d.%d\n", commit.LeaderId, commit.Instance)
+			//got a FastRaft message
+			dlog.Printf("Received FastRaft for instance %d.%d\n", commit.LeaderId, commit.Instance)
 			r.handleCommit(commit)
 			break
 
 		case commitS := <-r.commitShortChan:
 			commit := commitS.(*epaxosproto.CommitShort)
-			//got a Commit message
-			dlog.Printf("Received Commit for instance %d.%d\n", commit.LeaderId, commit.Instance)
+			//got a FastRaft message
+			dlog.Printf("Received FastRaft for instance %d.%d\n", commit.LeaderId, commit.Instance)
 			r.handleCommitShort(commit)
 			break
 
@@ -646,7 +646,7 @@ var ecs epaxosproto.CommitShort
 func (r *Replica) bcastCommit(replica int32, instance int32, cmds []state.Command, seq int32, deps [DS]int32) {
 	defer func() {
 		if err := recover(); err != nil {
-			dlog.Println("Commit bcast failed:", err)
+			dlog.Println("FastRaft bcast failed:", err)
 		}
 	}()
 	ec.LeaderId = r.Id

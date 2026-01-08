@@ -219,8 +219,8 @@ func (r *Replica) run() {
 
 		case commitS := <-r.commitChan:
 			commit := commitS.(*menciusproto.Commit)
-			//got a Commit message
-			dlog.Printf("Received Commit from replica %d, for instance %d\n", commit.LeaderId, commit.Instance)
+			//got a FastRaft message
+			dlog.Printf("Received FastRaft from replica %d, for instance %d\n", commit.LeaderId, commit.Instance)
 			r.handleCommit(commit)
 			break
 
@@ -400,7 +400,7 @@ var mc menciusproto.Commit
 func (r *Replica) bcastCommit(instance int32, skip uint8, nbInstToSkip int32, command state.Command) {
 	defer func() {
 		if err := recover(); err != nil {
-			dlog.Println("Commit bcast failed:", err)
+			dlog.Println("FastRaft bcast failed:", err)
 		}
 	}()
 	mc.LeaderId = r.Id
@@ -408,7 +408,7 @@ func (r *Replica) bcastCommit(instance int32, skip uint8, nbInstToSkip int32, co
 	mc.Skip = skip
 	mc.NbInstancesToSkip = nbInstToSkip
 	//mc.Command = command
-	//args := &menciusproto.Commit{r.Id, instance, skip, nbInstToSkip, command}
+	//args := &menciusproto.FastRaft{r.Id, instance, skip, nbInstToSkip, command}
 	args := &mc
 
 	n := r.N - 1
@@ -558,7 +558,7 @@ func (r *Replica) handleAccept(accept *menciusproto.Accept) {
 			if inst.command == nil {
 				inst.command = &accept.Command
 			}
-			dlog.Printf("ATTENTION! Reordered Commit\n")
+			dlog.Printf("ATTENTION! Reordered FastRaft\n")
 		} else {
 			inst.command = &accept.Command
 			inst.ballot = accept.Ballot

@@ -229,50 +229,60 @@ func (r *ShardedRaft) handleAppendEntries(args *raft.AppendEntriesArgs) {
 			(args.PrevLogIndex < r.log.Size() && args.PrevLogTerm == r.log.Get(args.PrevLogIndex).Term) {
 			reply.Success = true
 			logInsertIndex := args.PrevLogIndex + 1
-			newEntriesIndex := 0
-			for {
-				if logInsertIndex >= r.log.Size() || newEntriesIndex >= len(args.Entries) {
-					break
+			if *config.FastRaft == 0 {
+				size := int32(len(args.Entries))
+				r.appendFrom(args.PrevLogIndex+1, size, args.Entries)
+				if args.LeaderCommit > r.commitIndex {
+					from := r.commitIndex
+					r.commitIndex = min(args.LeaderCommit, r.log.Size()-1)
+					r.commitLog(from, r.commitIndex) // can also optimize lazy apply
 				}
-				if r.log.Get(logInsertIndex).Term != args.Entries[newEntriesIndex].Term {
-					break
-				}
-				logInsertIndex++
-				newEntriesIndex++
-			}
-			// At the end of this loop:
-			// - logInsertIndex points at the end of the log, or an index where the
-			//   term mismatches with an entry from the leader
-			// - newEntriesIndex points at the end of Entries, or an index where the
-			//   term mismatches with the corresponding log entry
-			if newEntriesIndex < len(args.Entries) {
-				dlog.Print("... inserting entries %v from index %d", args.Entries[newEntriesIndex:], logInsertIndex)
-				for i := newEntriesIndex; i < len(args.Entries); i++ {
-					r.log.Set(logInsertIndex, args.Entries[i])
+			} else {
+				newEntriesIndex := 0
+				for {
+					if logInsertIndex >= r.log.Size() || newEntriesIndex >= len(args.Entries) {
+						break
+					}
+					if r.log.Get(logInsertIndex).Term != args.Entries[newEntriesIndex].Term {
+						break
+					}
 					logInsertIndex++
+					newEntriesIndex++
+				}
+				// At the end of this loop:
+				// - logInsertIndex points at the end of the log, or an index where the
+				//   term mismatches with an entry from the leader
+				// - newEntriesIndex points at the end of Entries, or an index where the
+				//   term mismatches with the corresponding log entry
+				if newEntriesIndex < len(args.Entries) {
+					dlog.Print("... inserting entries %v from index %d", args.Entries[newEntriesIndex:], logInsertIndex)
+					for i := newEntriesIndex; i < len(args.Entries); i++ {
+						r.log.Set(logInsertIndex, args.Entries[i])
+						logInsertIndex++
+					}
+
+					if logInsertIndex > r.log.Size() {
+						r.log.SetSize(logInsertIndex)
+					}
+					dlog.Print("... log is now: %v", r.log)
+
+					// Update LastLogIndex after modification
+					reply.LastLogIndex = r.log.Size() - 1
 				}
 
-				if logInsertIndex > r.log.Size() {
-					r.log.SetSize(logInsertIndex)
+				// Set commit index.
+				if args.LeaderCommit > r.commitIndex {
+					from := r.commitIndex
+					if args.LeaderCommit < r.log.Size()-1 {
+						r.commitIndex = args.LeaderCommit
+					} else {
+						r.commitIndex = r.log.Size() - 1
+					}
+					dlog.Print("... setting commitIndex=%d", r.commitIndex)
+
+					// Apply entries from old commitIndex + 1 to the new commitIndex
+					r.commitLog(from, r.commitIndex)
 				}
-				dlog.Print("... log is now: %v", r.log)
-
-				// Update LastLogIndex after modification
-				reply.LastLogIndex = r.log.Size() - 1
-			}
-
-			// Set commit index.
-			if args.LeaderCommit > r.commitIndex {
-				from := r.commitIndex
-				if args.LeaderCommit < r.log.Size()-1 {
-					r.commitIndex = args.LeaderCommit
-				} else {
-					r.commitIndex = r.log.Size() - 1
-				}
-				dlog.Print("... setting commitIndex=%d", r.commitIndex)
-
-				// Apply entries from old commitIndex + 1 to the new commitIndex
-				r.commitLog(from, r.commitIndex)
 			}
 		}
 	}
@@ -281,6 +291,13 @@ func (r *ShardedRaft) handleAppendEntries(args *raft.AppendEntriesArgs) {
 	reply.Shard = r.shard
 	dlog.Print("AppendEntries reply: %+v", reply)
 	r.replica.SendMsg(args.LeaderId, r.replica.appendEntryReplyRPC, &reply)
+}
+
+func (r *ShardedRaft) appendFrom(start int32, size int32, entries []raft.LogEntry) {
+	for i := int32(0); i < size; i++ {
+		r.log.Set(start+i, entries[i])
+	}
+	r.log.SetSize(start + size)
 }
 
 func (r *ShardedRaft) handleAppendEntriesReply(reply *raft.AppendEntriesReply) {
@@ -302,7 +319,7 @@ func (r *ShardedRaft) handleAppendEntriesReply(reply *raft.AppendEntriesReply) {
 				peerId, r.nextIndex, r.matchIndex)
 
 			// Leader commits
-			if *config.Commit == 0 {
+			if *config.FastRaft == 0 {
 				r.updateCommitIndexRaft()
 			} else {
 				savedCommitIndex := r.commitIndex

@@ -895,9 +895,9 @@ func (t *BalanceArgs) Marshal(wire io.Writer) {
 	bs[3] = byte(tmp32 >> 24)
 	wire.Write(bs)
 
-	// write ProposalNum (4 bytes)
+	// write ProposalApportion (4 bytes)
 	bs = b[:4]
-	tmp32 = t.ProposalNum
+	tmp32 = t.ProposalApportion
 	bs[0] = byte(tmp32)
 	bs[1] = byte(tmp32 >> 8)
 	bs[2] = byte(tmp32 >> 16)
@@ -935,11 +935,11 @@ func (t *BalanceArgs) Unmarshal(rr io.Reader) error {
 	}
 	t.Sender = int32(uint32(b4[0]) | uint32(b4[1])<<8 | uint32(b4[2])<<16 | uint32(b4[3])<<24)
 
-	// read ProposalNum
+	// read ProposalApportion
 	if _, err := io.ReadAtLeast(wire, b4[:], 4); err != nil {
 		return err
 	}
-	t.ProposalNum = int32(uint32(b4[0]) | uint32(b4[1])<<8 | uint32(b4[2])<<16 | uint32(b4[3])<<24)
+	t.ProposalApportion = int32(uint32(b4[0]) | uint32(b4[1])<<8 | uint32(b4[2])<<16 | uint32(b4[3])<<24)
 
 	// read Shard
 	if _, err := io.ReadAtLeast(wire, b4[:], 4); err != nil {
@@ -1003,6 +1003,14 @@ func (t *BalanceReply) Marshal(wire io.Writer) {
 	}
 	wire.Write(b1[:1])
 
+	// write OK (1 byte)
+	if t.OK {
+		b1[0] = byte(1)
+	} else {
+		b1[0] = byte(0)
+	}
+	wire.Write(b1[:1])
+
 	// write Shard (4 bytes)
 	bs = b[:4]
 	tmp32 = t.Shard
@@ -1026,6 +1034,12 @@ func (t *BalanceReply) Unmarshal(rr io.Reader) error {
 		return err
 	}
 	t.Token = (b1[0] != 0)
+
+	// read OK
+	if _, err := io.ReadAtLeast(wire, b1[:], 1); err != nil {
+		return err
+	}
+	t.OK = (b1[0] != 0)
 
 	// read Shard
 	var b4 [4]byte

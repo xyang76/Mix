@@ -57,12 +57,14 @@ func (a *Apportion) StartTimer() {
 func encodeApportion(a *Apportion) int {
 	val := a.positiveApportion()
 	invert := ^val & 0xFF
-	return (invert << 16) | rand.Intn(len(a.replica.peerIds))*10
+	return invert
+	//return (invert << 16) | rand.Intn(len(a.replica.peerIds))*10
 }
 
 func decodeApportion(apportion int) int {
-	val := ^(apportion >> 16) & 0xFF
-	return val
+	//val := ^(apportion >> 16) & 0xFF
+	//return val
+	return ^apportion & 0xFF
 }
 
 func (a *Apportion) positiveApportion() int {

@@ -64,13 +64,15 @@ type AppendEntriesReply struct {
 }
 
 type BalanceArgs struct {
-	LeaderId    int32
-	Sender      int32
-	ProposalNum int32
-	Shard       int32
+	LeaderId          int32
+	Sender            int32
+	ProposalApportion int32
+	Shard             int32
 }
 
 type BalanceReply struct {
 	Token bool
+
+	OK    bool
 	Shard int32
 }

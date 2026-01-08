@@ -30,6 +30,7 @@ type Replica struct {
 	peerIds       []int32
 	leadingShards []int32
 	shardLastTime map[int32]time.Time
+	balanceTerm   int
 
 	voteAndGatherChan      chan fastrpc.Serializable
 	appendEntriesChan      chan fastrpc.Serializable
@@ -48,6 +49,7 @@ type Replica struct {
 	balanceReplyRPC       uint8
 	heartbeatRPC          uint8
 	heartbeatReplyRPC     uint8
+	grantedApportion      int32
 
 	leading       bool
 	balancing     bool
@@ -69,6 +71,8 @@ func NewReplica(id int, peerAddrList []string, thrifty bool, exec bool, dreply b
 		balanceReplyChan:       make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		heartbeatChan:          make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
 		heartbeatReplyChan:     make(chan fastrpc.Serializable, genericsmr.CHAN_BUFFER_SIZE),
+		grantedApportion:       -1,
+		balanceTerm:            0,
 
 		leading:   false,
 		balancing: false,
@@ -313,20 +317,19 @@ func (r *Replica) StopLeadingTimer() {
 func (r *Replica) checkShardStatus() {
 	currentTime := time.Now()
 	r.mu.Lock()
-	timer := r.shardLastTime
-	r.mu.Unlock()
-	for shard, lastSeen := range timer {
+	for shard, lastSeen := range r.shardLastTime {
 		// Calculate the time since the last seen
 		durationSinceLastSeen := currentTime.Sub(lastSeen).Milliseconds()
 		// Check if the node has expired
 		if int(durationSinceLastSeen) > *config.HeartBeatTimeout && !r.IsLeader(shard) {
-			dlog.Print("rep:%v expired shard:%v", r.Id, shard)
+			dlog.Info("rep:%v expired shard:%v", r.Id, shard)
 			go func() {
 				skiff := r.shards[shard]
 				skiff.startElection(r.getCurrentApportion())
 			}()
 		}
 	}
+	r.mu.Unlock()
 }
 
 func (r *Replica) refreshTime(shard int32) {
@@ -345,6 +348,17 @@ func (r *Replica) getCurrentLeaderSize() int {
 	r.mu.Unlock()
 	//defer r.mu.Unlock()
 	return size
+}
+
+func (r *Replica) grantApportion(apportion int32) bool {
+	if r.grantedApportion < apportion {
+		r.grantedApportion = apportion
+		time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
+			r.grantedApportion = -1
+		})
+		return true
+	}
+	return false
 }
 
 func (r *Replica) changeRole(shard int32, role SkiffState) {
@@ -383,7 +397,7 @@ func (r *Replica) sendHeartbeat() {
 		Apportion: r.getCurrentApportion(),
 	}
 	for _, peer := range r.peerIds {
-		r.SendMsg(peer, r.heartbeatRPC, msg)
+		go r.SendMsg(peer, r.heartbeatRPC, msg)
 	}
 }
 
@@ -418,13 +432,17 @@ func (r *Replica) needBalance(shard int32, apportion int32) bool {
 }
 
 func (r *Replica) runBalance(shard int32, leaderId int32, apportion int32, skiff *Skiff) {
+	skiff.setLeader(leaderId)
 	if config.Auto_Balance && r.apportion.NeedBalance(int(apportion)) && !r.balancing {
 		r.balancing = true
-		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v}", r.Id, shard, leaderId, decodeApportion(int(apportion)), skiff.currentApportion)
+		current := r.getCurrentApportion()
+		dlog.Info("rep:%v-shard:%v need balance {received leader:%v-app:%v vs cur:%v. Skiff:%v}",
+			r.Id, shard, leaderId, decodeApportion(int(apportion)), decodeApportion(int(current)),
+			skiff.currentApportion)
 		time.AfterFunc(time.Duration(*config.TokenRegenerate)*time.Millisecond, func() {
 			r.balancing = false
 		})
-		skiff.startBalance(leaderId)
+		skiff.startBalance(leaderId, current)
 	}
 }
 
