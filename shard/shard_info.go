@@ -12,9 +12,10 @@ type ShardInfo struct {
 
 // Constructor
 func NewShardInfo() *ShardInfo {
-	shardNum := *config.ShardNum
-	if config.CurrentApproach == config.Raft {
-		shardNum = 1
+	shardNum := 1
+	if config.CurrentApproach == config.MultiRaft ||
+		config.CurrentApproach == config.Shipyard {
+		shardNum = *config.ShardNum
 	}
 
 	shards := make([]int32, shardNum)

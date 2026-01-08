@@ -34,7 +34,7 @@ var BalanceInterval *int = flag.Int("bi", 2000, "Balance interval in millisecond
 var TokenRegenerate *int = flag.Int("to", 5000, "Token regeneration in milliseconds")
 var ReplyReceiveTimeout *int = flag.Int("rrt", 10000, "Since leader may crash, lost connection, we need this timeout to count elapse")
 
-const CHAN_BUFFER_SIZE = 500000
+const CHAN_BUFFER_SIZE = 5000
 const LOG_SIZE = 512 * 1024
 const PAXOS_LOG_SIZE = 1024 * 1024
 const TRUE = uint8(1)

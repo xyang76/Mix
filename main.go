@@ -23,13 +23,16 @@ func main() {
 	} else if config.CurrentInstance == config.Server {
 		server.Start()
 	} else if config.CurrentInstance == config.Client {
-		if config.CurrentApproach == config.Raft ||
-			config.CurrentApproach == config.Shipyard ||
-			config.CurrentApproach == config.MultiRaft {
-			client.StartRecoveryShardClient()
-		} else {
-			client.StartPaxosClient()
-		}
+		//if config.CurrentApproach == config.Raft ||
+		//	config.CurrentApproach == config.Shipyard ||
+		//	config.CurrentApproach == config.MultiRaft {
+		//	dlog.Info("Starting Raft/Shipyard/MultiRaft client")
+		//	client.StartRecoveryShardClient()
+		//} else {
+		//	dlog.Info("Starting Paxos/EPaxos/Mencius client")
+		//	client.StartPaxosClient2()
+		//}
+		client.StartRecoveryShardClient()
 	} else if config.CurrentInstance == config.ClientPerSec {
 		//client.OneReq()
 		client.StartRecoveryShardClientSec()

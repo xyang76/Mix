@@ -368,12 +368,24 @@ func (r *ShardedRaft) updateCommitIndexRaft() {
 	// Raft rule: only commit entries from current term
 	// Walk backward until term matches or commitIndex reached
 	ci := r.commitIndex
-	for i := int32(majorityIndex); i > ci; i-- {
-		if r.log.Get(i).Term == r.currentTerm {
-			r.commitIndex = i
-			break
+
+	if r.log.Get(int32(majorityIndex)).Term == r.currentTerm {
+		r.commitIndex = max(int32(majorityIndex), r.commitIndex)
+	} else {
+		for i := int32(majorityIndex); i > ci; i-- {
+			if r.log.Get(i).Term == r.currentTerm {
+				r.commitIndex = i
+				break
+			}
 		}
 	}
+
+	//for i := int32(majorityIndex); i > ci; i-- {
+	//	if r.log.Get(i).Term == r.currentTerm {
+	//		r.commitIndex = i
+	//		break
+	//	}
+	//}
 
 	if r.commitIndex > ci {
 		r.commitLog(ci, r.commitIndex)

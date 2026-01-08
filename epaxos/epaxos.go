@@ -997,7 +997,7 @@ func (r *Replica) handlePreAccept(preAccept *epaxosproto.PreAccept) {
 }
 
 func (r *Replica) handlePreAcceptReply(pareply *epaxosproto.PreAcceptReply) {
-	dlog.Printf("Handling PreAccept reply\n")
+	dlog.Printf("Handling PreAccept reply %v\n", pareply)
 	inst := r.InstanceSpace[pareply.Replica][pareply.Instance]
 
 	if inst.Status != epaxosproto.PREACCEPTED {
@@ -1022,10 +1022,10 @@ func (r *Replica) handlePreAcceptReply(pareply *epaxosproto.PreAcceptReply) {
 	}
 
 	inst.lb.preAcceptOKs++
-
+	dlog.Info("I am here!")
 	var equal bool
 	inst.Seq, inst.Deps, equal = r.mergeAttributes(inst.Seq, inst.Deps, pareply.Seq, pareply.Deps)
-	if (r.N <= 3 && !r.Thrifty) || inst.lb.preAcceptOKs > 1 {
+	if (r.N <= 5 && !r.Thrifty) || inst.lb.preAcceptOKs > 1 {
 		inst.lb.allEqual = inst.lb.allEqual && equal
 		if !equal {
 			conflicted++

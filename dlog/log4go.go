@@ -1,9 +1,11 @@
 package dlog
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"runtime/debug"
+	"strconv"
 	"strings"
 )
 
@@ -62,6 +64,25 @@ func callInfo() string {
 		format = fmt.Sprintf("%s%s", funcName, lineNum)
 	}
 	return format
+}
+
+func GoId() int {
+	stack := debug.Stack()
+	lines := bytes.Split(stack, []byte("\n"))
+	if len(lines) == 0 {
+		return 0
+	}
+	// first line: "goroutine 12345 [running]:"
+	firstLine := string(lines[0])
+	fields := strings.Fields(firstLine)
+	if len(fields) < 2 {
+		return 0
+	}
+	id, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return 0
+	}
+	return id
 }
 
 func stackInfo() string {

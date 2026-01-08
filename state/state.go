@@ -83,8 +83,8 @@ func (c *Command) Execute(st *State) Value {
 
 	//var key, value [8]byte
 
-	//    st.mutex.Lock()
-	//    defer st.mutex.Unlock()
+	st.mutex.Lock()
+	defer st.mutex.Unlock()
 
 	switch c.Op {
 	case PUT:

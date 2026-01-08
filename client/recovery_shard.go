@@ -64,6 +64,14 @@ func StartRecoveryShardClient() {
 
 		for i := 0; i < reqsPerRound; i++ {
 			key := state.Key(int(reqID))
+			if config.CurrentApproach == config.EPaxos || config.CurrentApproach == config.Mencius {
+				conflict := client.RandomValue()
+				if conflict <= *conflicts {
+					key = state.Key(42)
+				} else {
+					key = state.Key(43 + reqID)
+				}
+			}
 			operation := client.RandomValue()
 			if operation <= writePercent {
 				client.NonBlockSend(reqID, key, state.PUT, state.Value(reqID))
@@ -92,7 +100,8 @@ func StartRecoveryShardClient() {
 		elapsed := last - startTime.UnixNano()
 		elapsed_sum += elapsed
 		//fmt.Printf("Round %d finished: total success=%d of %d/%d, elapsed=%v\n", r, client.Success(), replyTime.replyArrivals[r], reqsPerRound, time.Duration(elapsed))
-		fmt.Printf("Round %d finished: total success=%d(s:%d-f:%d) of %d/%d, elapsed=%v\n", r, client.Success(), client.skipped, client.failed, replyTime.replyArrivals[r], reqsPerRound, time.Duration(elapsed))
+		fmt.Printf("Round %d finished: total success=%d(s:%d-f:%d) of %d/%d, elapsed=%v\n",
+			r, client.Success(), client.skipped, client.failed, replyTime.replyArrivals[r], reqsPerRound, time.Duration(elapsed))
 	}
 
 	after_total := time.Now()
